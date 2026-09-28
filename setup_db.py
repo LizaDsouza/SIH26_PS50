@@ -1,31 +1,49 @@
 import sqlite3
 
-# 1. Connect to (or create) the database file
-conn = sqlite3.connect("known_drones.db")
-cursor = conn.cursor()
+def init_db():
+    # Connects to database file (creates it if it does not exist)
+    conn = sqlite3.connect("known_drones.db")
+    cursor = conn.cursor()
 
-# 2. Create a table for drone records
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS drones (
-        drone_id TEXT PRIMARY KEY,
-        owner TEXT,
-        status TEXT
+    # 1. Create registered entity profiles table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS entities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        status TEXT NOT NULL
     )
-""")
+    """)
 
-# 3. Add sample test data
-sample_drones = [
-    ("DRONE_001", "Friendly Patrol", "FRIEND"),
-    ("DRONE_002", "Unknown Rogue Unit", "FOE")
-]
+    # 2. Create live telemetry detection logs table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS detections (
+        detection_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT NOT NULL,
+        confidence REAL NOT NULL,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        bounding_box TEXT,
+        location TEXT,
+        alert_level TEXT
+    )
+    """)
 
-cursor.executemany("""
-    INSERT OR REPLACE INTO drones (drone_id, owner, status)
-    VALUES (?, ?, ?)
-""", sample_drones)
+    # Populate initial sample data into entities if empty
+    cursor.execute("SELECT COUNT(*) FROM entities")
+    if cursor.fetchone()[0] == 0:
+        sample_entities = [
+            ("DJI Mavic 3", "Drone", "Authorized"),
+            ("Security Officer A", "Person", "Authorized"),
+            ("Unidentified Quadcopter", "Drone", "Unauthorized")
+        ]
+        cursor.executemany("""
+            INSERT INTO entities (name, category, status)
+            VALUES (?, ?, ?)
+        """, sample_entities)
 
-# 4. Save and close
-conn.commit()
-conn.close()
+    conn.commit()
+    conn.close()
+    print("Database schema successfully created in known_drones.db")
 
-print("Database initialized successfully!")
+if __name__ == "__main__":
+    init_db()

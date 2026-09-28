@@ -1,31 +1,3 @@
-# import cv2
-# from ultralytics import YOLO
-
-# # 1. Load the pre-trained YOLOv8 nano model
-# model = YOLO("yolov8n.pt")
-
-# # 2. Open webcam (0) or replace "0" with a video file path e.g. "drone_test.mp4"
-# cap = cv2.VideoCapture(0)
-
-# while cap.isOpened():
-#     ret, frame = cap.read()
-#     if not ret:
-#         break
-
-#     # Run YOLOv8 on the current frame
-#     results = model(frame, stream=True)
-
-#     # Visualize results on the frame
-#     for r in results:
-#         annotated_frame = r.plot()
-#         cv2.imshow("AeroGuard-3K - Real-Time Detection", annotated_frame)
-
-#     # Press 'q' on your keyboard to exit
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
-
-# cap.release()
-# cv2.destroyAllWindows()
 
 import cv2
 import sqlite3
@@ -35,16 +7,20 @@ from ultralytics import YOLO
 model = YOLO("yolov8n.pt")
 
 # 2. Function to check IFF status in SQLite database
-def check_iff_status(drone_id):
-    conn = sqlite3.connect("known_drones.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT status FROM drones WHERE drone_id = ?", (drone_id,))
-    result = cursor.fetchone()
-    conn.close()
+def determine_alert_level(category, confidence):
+    category = category.lower()
     
-    if result:
-        return result[0]
-    return "UNKNOWN_FOE"
+    if category == 'drone':
+        if confidence >= 0.70:
+            return 'CRITICAL'
+        else:
+            return 'Medium' 
+            
+    elif category == 'person':
+        return 'Medium' 
+        
+    else: # Birds, animals, or general clutter
+        return 'Low' 
 
 # 3. Open video stream (Webcam)
 cap = cv2.VideoCapture(0)
@@ -66,8 +42,7 @@ while cap.isOpened():
             test_drone_id = "DRONE_001" if cls_id == 0 else "DRONE_002"
             
             # Query local DB
-            status = check_iff_status(test_drone_id)
-            
+            status = determine_alert_level(test_drone_id, box.conf[0])
             # Bounding box coordinates
             x1, y1, x2, y2 = map(int, box.xyxy[0])
             
